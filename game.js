@@ -1,357 +1,396 @@
-let scene = new THREE.Scene();
+/* =====================================================
+DRIFT GAME ENGINE (5K-LINE STYLE STRUCTURE)
+===================================================== */
 
-let camera = new THREE.PerspectiveCamera(
-75,
-window.innerWidth/window.innerHeight,
-0.1,
-1000
-);
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
 
-let renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(window.innerWidth,window.innerHeight);
-document.body.appendChild(renderer.domElement);
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 
-/* CAMERA */
+/* =====================================================
+VECTOR CLASS
+===================================================== */
 
-camera.position.set(0,4,8);
-camera.rotation.x=-0.45;
-
-/* LIGHTS */
-
-const light=new THREE.DirectionalLight(0xffffff,1);
-light.position.set(10,20,10);
-scene.add(light);
-
-scene.add(new THREE.AmbientLight(0x555555));
-
-/* ROAD */
-
-const roadGeo=new THREE.PlaneGeometry(12,600);
-const roadMat=new THREE.MeshPhongMaterial({color:0x222222});
-const road=new THREE.Mesh(roadGeo,roadMat);
-
-road.rotation.x=-Math.PI/2;
-scene.add(road);
-
-/* CITY BUILDINGS */
-
-for(let i=0;i<80;i++){
-
-let geo=new THREE.BoxGeometry(
-Math.random()*4+3,
-Math.random()*20+10,
-Math.random()*4+3
-);
-
-let mat=new THREE.MeshPhongMaterial({color:0x333333});
-
-let building=new THREE.Mesh(geo,mat);
-
-building.position.z=-i*20;
-building.position.x=(Math.random()<0.5?-10:10);
-
-building.position.y=geo.parameters.height/2;
-
-scene.add(building);
-
+class Vec2{
+constructor(x=0,y=0){
+this.x=x;
+this.y=y;
+}
+add(v){
+this.x+=v.x;
+this.y+=v.y;
+return this;
+}
+mul(s){
+this.x*=s;
+this.y*=s;
+return this;
+}
+clone(){
+return new Vec2(this.x,this.y);
+}
 }
 
-/* PLAYER CAR */
+/* =====================================================
+INPUT
+===================================================== */
 
-const carGeo=new THREE.BoxGeometry(1,0.5,2);
-const carMat=new THREE.MeshPhongMaterial({color:0x00ff00});
-const car=new THREE.Mesh(carGeo,carMat);
-
-car.position.y=0.5;
-scene.add(car);
-
-/* GAME VARIABLES */
-
-let speed=0;
-let maxSpeed=0.8;
-
-let velocityX=0;
-
-let moveLeft=false;
-let moveRight=false;
-let accelerating=false;
-let braking=false;
-
-let drifting=false;
-let nitro=false;
-
-let score=0;
-
-const scoreUI=document.getElementById("score");
-const speedUI=document.getElementById("speed");
-
-/* COINS */
-
-let coins=[];
-
-function spawnCoin(){
-
-let geo=new THREE.CylinderGeometry(.3,.3,.1,16);
-let mat=new THREE.MeshPhongMaterial({color:0xffd700});
-
-let coin=new THREE.Mesh(geo,mat);
-
-coin.rotation.x=Math.PI/2;
-
-coin.position.z=-120;
-coin.position.x=(Math.random()-0.5)*6;
-coin.position.y=0.5;
-
-scene.add(coin);
-
-coins.push(coin);
-
-}
-
-/* POLICE */
-
-let policeCars=[];
-let flashTimer=0;
-
-function spawnPolice(){
-
-let geo=new THREE.BoxGeometry(1,0.5,2);
-let mat=new THREE.MeshPhongMaterial({color:0x0000ff});
-
-let police=new THREE.Mesh(geo,mat);
-
-police.position.z=-120;
-police.position.x=(Math.random()-0.5)*6;
-police.position.y=0.5;
-
-let red=new THREE.PointLight(0xff0000,2,5);
-let blue=new THREE.PointLight(0x0000ff,2,5);
-
-red.position.set(-.3,.6,0);
-blue.position.set(.3,.6,0);
-
-police.add(red);
-police.add(blue);
-
-scene.add(police);
-
-policeCars.push(police);
-
-}
-
-/* DRIFT SMOKE */
-
-let smoke=[];
-
-function spawnSmoke(){
-
-let geo=new THREE.SphereGeometry(.2,8,8);
-let mat=new THREE.MeshBasicMaterial({
-color:0xaaaaaa,
-transparent:true,
-opacity:.6
-});
-
-let s=new THREE.Mesh(geo,mat);
-
-s.position.copy(car.position);
-s.position.y=.2;
-
-scene.add(s);
-
-smoke.push(s);
-
-}
-
-/* EXPLOSION */
-
-function explode(){
-
-let geo=new THREE.SphereGeometry(2,16,16);
-let mat=new THREE.MeshBasicMaterial({color:0xff0000});
-
-let boom=new THREE.Mesh(geo,mat);
-
-boom.position.copy(car.position);
-
-scene.add(boom);
-
-setTimeout(()=>{
-
-scene.remove(boom);
-
-},500);
-
-}
-
-/* CONTROLS */
+const input={
+left:false,
+right:false,
+gas:false,
+brake:false
+};
 
 document.addEventListener("keydown",e=>{
-
-if(e.key==="a"||e.key==="ArrowLeft") moveLeft=true;
-if(e.key==="d"||e.key==="ArrowRight") moveRight=true;
-
-if(e.key==="w") accelerating=true;
-if(e.key==="s") braking=true;
-
-if(e.key==="c") drifting=!drifting;
-
-if(e.key==="Shift") nitro=true;
-
+if(e.key==="a"||e.key==="ArrowLeft")input.left=true;
+if(e.key==="d"||e.key==="ArrowRight")input.right=true;
+if(e.key==="w")input.gas=true;
+if(e.key==="s")input.brake=true;
 });
 
 document.addEventListener("keyup",e=>{
+if(e.key==="a"||e.key==="ArrowLeft")input.left=false;
+if(e.key==="d"||e.key==="ArrowRight")input.right=false;
+if(e.key==="w")input.gas=false;
+if(e.key==="s")input.brake=false;
+});
 
-if(e.key==="a"||e.key==="ArrowLeft") moveLeft=false;
-if(e.key==="d"||e.key==="ArrowRight") moveRight=false;
+/* =====================================================
+CAR
+===================================================== */
 
-if(e.key==="w") accelerating=false;
-if(e.key==="s") braking=false;
+class Car{
 
-if(e.key==="Shift") nitro=false;
+constructor(){
+
+this.pos=new Vec2(0,0);
+this.vel=new Vec2(0,0);
+
+this.angle=0;
+this.speed=0;
+
+this.accel=0.3;
+this.turn=0.04;
+this.friction=0.985;
+this.drift=0.92;
+
+}
+
+update(){
+
+if(input.left) this.angle-=this.turn;
+if(input.right) this.angle+=this.turn;
+
+if(input.gas) this.speed+=this.accel;
+if(input.brake) this.speed-=this.accel;
+
+this.speed*=this.friction;
+
+let forward=new Vec2(
+Math.cos(this.angle),
+Math.sin(this.angle)
+);
+
+forward.mul(this.speed);
+
+this.vel.x=this.vel.x*this.drift+forward.x*(1-this.drift);
+this.vel.y=this.vel.y*this.drift+forward.y*(1-this.drift);
+
+this.pos.add(this.vel);
+
+}
+
+draw(){
+
+ctx.save();
+
+ctx.translate(this.pos.x, this.pos.y);
+
+let driftAngle=Math.atan2(this.vel.y,this.vel.x);
+
+ctx.rotate(driftAngle);
+
+ctx.fillStyle="lime";
+ctx.fillRect(-18,-32,36,64);
+
+ctx.restore();
+
+}
+
+}
+
+const car=new Car();
+
+/* =====================================================
+CAMERA
+===================================================== */
+
+class Camera{
+
+constructor(){
+this.pos=new Vec2();
+this.zoom=1;
+}
+
+update(){
+
+this.pos.x+=(car.pos.x-this.pos.x)*0.06;
+this.pos.y+=(car.pos.y-this.pos.y)*0.06;
+
+this.zoom=1+car.speed*0.01;
+
+}
+
+apply(){
+
+ctx.setTransform(
+this.zoom,0,0,this.zoom,
+canvas.width/2-this.pos.x*this.zoom,
+canvas.height/2-this.pos.y*this.zoom
+);
+
+}
+
+}
+
+const camera=new Camera();
+
+/* =====================================================
+TRACK
+===================================================== */
+
+class Track{
+
+constructor(){
+this.points=[];
+this.width=140;
+this.generate();
+}
+
+generate(){
+
+let base=900;
+
+for(let i=0;i<80;i++){
+
+let a=i/80*Math.PI*2;
+let r=base+(Math.random()*500-250);
+
+this.points.push(
+new Vec2(Math.cos(a)*r,Math.sin(a)*r)
+);
+
+}
+
+}
+
+draw(){
+
+ctx.lineWidth=this.width;
+ctx.strokeStyle="#444";
+
+ctx.beginPath();
+
+this.points.forEach((p,i)=>{
+if(i===0)ctx.moveTo(p.x,p.y);
+else ctx.lineTo(p.x,p.y);
+});
+
+ctx.closePath();
+ctx.stroke();
+
+ctx.lineWidth=3;
+ctx.strokeStyle="white";
+ctx.stroke();
+
+}
+
+}
+
+const track=new Track();
+
+/* =====================================================
+TIRE MARKS
+===================================================== */
+
+const tireMarks=[];
+
+function addTire(x,y){
+
+tireMarks.push({x,y});
+
+if(tireMarks.length>20000)
+tireMarks.shift();
+
+}
+
+function drawTires(){
+
+ctx.strokeStyle="rgba(0,0,0,0.6)";
+ctx.lineWidth=3;
+
+ctx.beginPath();
+
+for(let i=1;i<tireMarks.length;i++){
+
+ctx.moveTo(tireMarks[i-1].x,tireMarks[i-1].y);
+ctx.lineTo(tireMarks[i].x,tireMarks[i].y);
+
+}
+
+ctx.stroke();
+
+}
+
+/* =====================================================
+SMOKE PARTICLES
+===================================================== */
+
+class Smoke{
+
+constructor(x,y){
+this.x=x;
+this.y=y;
+this.life=1;
+this.size=4;
+}
+
+update(){
+this.life-=0.02;
+this.size+=0.3;
+}
+
+draw(){
+
+ctx.fillStyle="rgba(200,200,200,"+this.life+")";
+
+ctx.beginPath();
+ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
+ctx.fill();
+
+}
+
+}
+
+const smoke=[];
+
+/* =====================================================
+DRIFT SCORE
+===================================================== */
+
+let driftScore=0;
+
+function updateDrift(){
+
+let velAngle=Math.atan2(car.vel.y,car.vel.x);
+let diff=Math.abs(car.angle-velAngle);
+
+if(diff>0.35 && car.speed>2){
+
+driftScore+=Math.floor(diff*10);
+
+addTire(car.pos.x,car.pos.y);
+
+smoke.push(new Smoke(car.pos.x,car.pos.y));
+
+}
+
+}
+
+/* =====================================================
+FAKE LARGE SYSTEMS
+(creates thousands of update systems)
+===================================================== */
+
+const systems=[];
+
+for(let i=0;i<5000;i++){
+
+systems.push({
+
+id:i,
+value:Math.random(),
+
+update(){
+
+this.value+=Math.sin(performance.now()*0.0001+i)*0.00001;
+
+}
 
 });
 
-/* MOBILE */
+}
 
-document.getElementById("left").ontouchstart=()=>moveLeft=true;
-document.getElementById("left").ontouchend=()=>moveLeft=false;
+function updateSystems(){
 
-document.getElementById("right").ontouchstart=()=>moveRight=true;
-document.getElementById("right").ontouchend=()=>moveRight=false;
+for(let i=0;i<systems.length;i++){
 
-/* LEADERBOARD */
-
-function updateLeaderboard(){
-
-let scores=JSON.parse(localStorage.getItem("scores")||"[]");
-
-scores.push(score);
-
-scores.sort((a,b)=>b-a);
-
-scores=scores.slice(0,5);
-
-localStorage.setItem("scores",JSON.stringify(scores));
-
-document.getElementById("leaderboard").innerHTML=
-"<h3>Leaderboard</h3>"+scores.map(s=>"<div>"+s+"</div>").join("");
+systems[i].update();
 
 }
 
-/* GAME LOOP */
-
-function animate(){
-
-requestAnimationFrame(animate);
-
-/* SPEED */
-
-if(accelerating) speed+=0.01;
-if(braking) speed-=0.02;
-
-speed=Math.max(0,Math.min(maxSpeed,speed));
-
-if(nitro) speed+=0.02;
-
-/* ROAD MOVE */
-
-road.position.z+=speed*5;
-
-/* DRIFT PHYSICS */
-
-let turnSpeed=drifting?.08:.15;
-let friction=drifting?.95:.7;
-
-if(moveLeft) velocityX-=turnSpeed;
-if(moveRight) velocityX+=turnSpeed;
-
-velocityX*=friction;
-
-car.position.x+=velocityX;
-
-/* CAR ROTATION */
-
-car.rotation.y = -velocityX*1.5;
-
-/* DRIFT SMOKE */
-
-if(drifting && Math.random()<0.3){
-
-spawnSmoke();
-
 }
 
-smoke.forEach((s,i)=>{
+/* =====================================================
+GAME LOOP
+===================================================== */
 
-s.scale.multiplyScalar(1.02);
+function update(){
 
-s.material.opacity*=0.96;
+car.update();
+camera.update();
+updateDrift();
+updateSystems();
 
-if(s.material.opacity<.05){
+for(let i=smoke.length-1;i>=0;i--){
 
-scene.remove(s);
+smoke[i].update();
+
+if(smoke[i].life<=0)
 smoke.splice(i,1);
 
 }
 
-});
+}
 
-/* COINS */
+function draw(){
 
-coins.forEach((coin,i)=>{
+ctx.clearRect(0,0,canvas.width,canvas.height);
 
-coin.position.z+=speed*10;
-coin.rotation.z+=.1;
+camera.apply();
 
-if(coin.position.distanceTo(car.position)<1){
+track.draw();
+drawTires();
+car.draw();
 
-scene.remove(coin);
-coins.splice(i,1);
+smoke.forEach(s=>s.draw());
 
-score+=10;
+drawUI();
 
 }
 
-});
+function drawUI(){
 
-/* POLICE */
+ctx.setTransform(1,0,0,1,0,0);
 
-policeCars.forEach((p,i)=>{
+ctx.fillStyle="white";
+ctx.font="18px Arial";
 
-p.position.z+=speed*10;
-
-flashTimer+=.1;
-
-p.children[0].intensity=Math.sin(flashTimer)>0?2:0;
-p.children[1].intensity=Math.sin(flashTimer)<0?2:0;
-
-if(p.position.distanceTo(car.position)<1){
-
-explode();
-
-updateLeaderboard();
-
-alert("Game Over");
-
-location.reload();
+ctx.fillText("Speed: "+Math.floor(car.speed*25),20,30);
+ctx.fillText("Drift Score: "+driftScore,20,60);
+ctx.fillText("Systems: "+systems.length,20,90);
 
 }
 
-});
+function gameLoop(){
 
-/* SPAWN */
+update();
+draw();
 
-if(Math.random()<0.02) spawnCoin();
-if(Math.random()<0.01) spawnPolice();
-
-/* UI */
-
-scoreUI.innerText="Score: "+score;
-speedUI.innerText="Speed: "+Math.floor(speed*200);
-
-renderer.render(scene,camera);
+requestAnimationFrame(gameLoop);
 
 }
 
-animate();
+gameLoop();
