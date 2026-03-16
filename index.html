@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8">
-<title>2D Racing Game</title>
+<title>3D Racing Game</title>
 <link rel="stylesheet" href="style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 </head>
 
 <body>
@@ -12,18 +14,10 @@
 Score: <span id="score">0</span>
 </div>
 
-<div id="menu">
-<h1>2D Racing Game</h1>
-<button id="startBtn">Start Game</button>
+<div id="mobileControls">
+<button id="left">◀</button>
+<button id="right">▶</button>
 </div>
-
-<div id="gameOver" class="hidden">
-<h1>Game Over</h1>
-<p>Final Score: <span id="finalScore"></span></p>
-<button id="restartBtn">Restart</button>
-</div>
-
-<canvas id="gameCanvas" width="400" height="600"></canvas>
 
 <script src="game.js"></script>
 
