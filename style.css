@@ -1,6 +1,40 @@
-{\rtf1\ansi\ansicpg1252\cocoartf2761
-\cocoatextscaling0\cocoaplatform0{\fonttbl}
-{\colortbl;\red255\green255\blue255;}
-{\*\expandedcolortbl;;}
-\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+body {
+margin: 0;
+background: #111;
+font-family: Arial, sans-serif;
+text-align: center;
+color: white;
+}
+
+canvas {
+background: #444;
+display: block;
+margin: auto;
+border: 4px solid white;
+}
+
+#ui {
+position: absolute;
+width: 100%;
+top: 20px;
+font-size: 24px;
+}
+
+#menu, #gameOver {
+position: absolute;
+width: 100%;
+top: 40%;
+}
+
+.hidden {
+display: none;
+}
+
+button {
+padding: 10px 20px;
+font-size: 18px;
+cursor: pointer;
+border: none;
+background: lime;
+color: black;
 }
