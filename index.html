@@ -2,28 +2,21 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>3D Racing Game</title>
-
+<title>Insane Drift Game</title>
 <link rel="stylesheet" href="style.css">
-
-<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 </head>
 
 <body>
 
 <div id="ui">
-
-<div id="score">Score: 0</div>
-<div id="speed">Speed: 0</div>
-
-<div id="leaderboard"></div>
-
+<div id="speed"></div>
+<div id="drift"></div>
+<div id="lap"></div>
+<div id="timer"></div>
+<div id="best"></div>
 </div>
 
-<div id="mobileControls">
-<button id="left">◀</button>
-<button id="right">▶</button>
-</div>
+<canvas id="gameCanvas"></canvas>
 
 <script src="game.js"></script>
 
