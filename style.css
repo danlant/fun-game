@@ -1,7 +1,7 @@
 body{
 margin:0;
 overflow:hidden;
-background:black;
+background:#0a0a0a;
 font-family:Arial;
 color:white;
 }
@@ -10,26 +10,10 @@ color:white;
 position:absolute;
 top:10px;
 left:10px;
-z-index:2;
-font-size:20px;
+font-size:18px;
+line-height:28px;
 }
 
-#leaderboard{
-margin-top:10px;
-}
-
-#mobileControls{
-position:absolute;
-bottom:20px;
-width:100%;
-text-align:center;
-z-index:2;
-}
-
-button{
-font-size:30px;
-padding:15px 25px;
-margin:10px;
-border:none;
-border-radius:10px;
+canvas{
+display:block;
 }
