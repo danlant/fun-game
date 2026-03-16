@@ -1,180 +1,209 @@
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-
-const startBtn = document.getElementById("startBtn");
-const restartBtn = document.getElementById("restartBtn");
-
-let player;
-let enemies = [];
-let keys = {};
-let score = 0;
-let gameSpeed = 3;
-let gameRunning = false;
-let roadOffset = 0;
-
-/* PLAYER */
-function createPlayer() {
-return {
-x: canvas.width / 2 - 20,
-y: canvas.height - 100,
-width: 40,
-height: 70,
-speed: 6
-};
-}
-
-/* SPAWN ENEMY */
-function spawnEnemy() {
-
-const lane = Math.floor(Math.random() * 3);
-const laneWidth = canvas.width / 3;
-
-enemies.push({
-x: lane * laneWidth + laneWidth/2 - 20,
-y: -80,
-width: 40,
-height: 70
-});
-
-}
-
-/* DRAW ROAD */
-function drawRoad() {
-
-ctx.fillStyle = "#555";
-ctx.fillRect(0,0,canvas.width,canvas.height);
-
-ctx.strokeStyle = "white";
-ctx.lineWidth = 5;
-ctx.setLineDash([20,20]);
-
-roadOffset += gameSpeed;
-ctx.lineDashOffset = -roadOffset;
-
-ctx.beginPath();
-ctx.moveTo(canvas.width/3,0);
-ctx.lineTo(canvas.width/3,canvas.height);
-ctx.stroke();
-
-ctx.beginPath();
-ctx.moveTo(canvas.width/3*2,0);
-ctx.lineTo(canvas.width/3*2,canvas.height);
-ctx.stroke();
-
-ctx.setLineDash([]);
-
-}
-
-/* DRAW CAR */
-function drawCar(car,color){
-ctx.fillStyle = color;
-ctx.fillRect(car.x,car.y,car.width,car.height);
-}
-
-/* COLLISION */
-function isColliding(a,b){
-return (
-a.x < b.x + b.width &&
-a.x + a.width > b.x &&
-a.y < b.y + b.height &&
-a.y + a.height > b.y
+let scene = new THREE.Scene();
+let camera = new THREE.PerspectiveCamera(
+75,
+window.innerWidth / window.innerHeight,
+0.1,
+1000
 );
-}
 
-/* GAME LOOP */
-function update(){
+let renderer = new THREE.WebGLRenderer();
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
 
-if(!gameRunning) return;
+camera.position.z = 5;
+camera.position.y = 3;
+camera.rotation.x = -0.5;
 
-ctx.clearRect(0,0,canvas.width,canvas.height);
+let roadSpeed = 0.3;
+let score = 0;
 
-drawRoad();
+const scoreUI = document.getElementById("score");
 
-/* PLAYER MOVEMENT */
+/* LIGHT */
 
-if(keys["ArrowLeft"] || keys["a"]) player.x -= player.speed;
-if(keys["ArrowRight"] || keys["d"]) player.x += player.speed;
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(5, 10, 7);
+scene.add(light);
 
-player.x = Math.max(0, Math.min(canvas.width-player.width, player.x));
+/* ROAD */
 
-drawCar(player,"lime");
+const roadGeo = new THREE.PlaneGeometry(10, 200);
+const roadMat = new THREE.MeshPhongMaterial({ color: 0x333333 });
+const road = new THREE.Mesh(roadGeo, roadMat);
 
-/* ENEMIES */
+road.rotation.x = -Math.PI / 2;
+scene.add(road);
 
-for(let i=0;i<enemies.length;i++){
+/* PLAYER CAR */
 
-enemies[i].y += gameSpeed;
+const carGeo = new THREE.BoxGeometry(1, 0.5, 2);
+const carMat = new THREE.MeshPhongMaterial({ color: 0x00ff00 });
+const car = new THREE.Mesh(carGeo, carMat);
 
-drawCar(enemies[i],"red");
+car.position.y = 0.5;
+scene.add(car);
 
-if(isColliding(player,enemies[i])){
-endGame();
-}
+/* COINS */
 
-if(enemies[i].y > canvas.height){
-enemies.splice(i,1);
-score++;
-document.getElementById("score").innerText = score;
-}
+let coins = [];
 
-}
+function spawnCoin() {
 
-/* SPAWN NEW ENEMY */
+const geo = new THREE.CylinderGeometry(0.3, 0.3, 0.1, 16);
+const mat = new THREE.MeshPhongMaterial({ color: 0xffff00 });
 
-if(Math.random() < 0.02){
-spawnEnemy();
-}
+let coin = new THREE.Mesh(geo, mat);
 
-/* INCREASE DIFFICULTY */
+coin.rotation.x = Math.PI / 2;
+coin.position.z = -100;
+coin.position.x = (Math.random() - 0.5) * 6;
+coin.position.y = 0.5;
 
-gameSpeed += 0.0005;
-
-requestAnimationFrame(update);
-
-}
-
-/* START GAME */
-
-function startGame(){
-
-player = createPlayer();
-enemies = [];
-score = 0;
-gameSpeed = 3;
-
-gameRunning = true;
-
-document.getElementById("score").innerText = score;
-
-document.getElementById("menu").classList.add("hidden");
-document.getElementById("gameOver").classList.add("hidden");
-
-update();
+scene.add(coin);
+coins.push(coin);
 
 }
 
-/* GAME OVER */
+/* POLICE CARS */
 
-function endGame(){
+let policeCars = [];
 
-gameRunning = false;
+function spawnPolice() {
 
-document.getElementById("finalScore").innerText = score;
-document.getElementById("gameOver").classList.remove("hidden");
+const geo = new THREE.BoxGeometry(1, 0.5, 2);
+const mat = new THREE.MeshPhongMaterial({ color: 0x0000ff });
+
+let police = new THREE.Mesh(geo, mat);
+
+police.position.z = -100;
+police.position.x = (Math.random() - 0.5) * 6;
+police.position.y = 0.5;
+
+scene.add(police);
+policeCars.push(police);
 
 }
 
-/* BUTTONS */
+/* EXPLOSION */
 
-startBtn.onclick = startGame;
-restartBtn.onclick = startGame;
+function explode() {
+
+const geo = new THREE.SphereGeometry(2, 16, 16);
+const mat = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+
+let boom = new THREE.Mesh(geo, mat);
+
+boom.position.copy(car.position);
+
+scene.add(boom);
+
+setTimeout(() => {
+scene.remove(boom);
+}, 500);
+
+}
 
 /* CONTROLS */
 
-document.addEventListener("keydown",(e)=>{
-keys[e.key] = true;
+let moveLeft = false;
+let moveRight = false;
+
+let drifting = false;
+let velocityX = 0;
+
+/* KEYBOARD */
+
+document.addEventListener("keydown", e => {
+
+if (e.key === "ArrowLeft" || e.key === "a") moveLeft = true;
+if (e.key === "ArrowRight" || e.key === "d") moveRight = true;
+
+/* DRIFT TOGGLE */
+
+if (e.key === "c") {
+drifting = !drifting;
+}
+
 });
 
-document.addEventListener("keyup",(e)=>{
-keys[e.key] = false;
+document.addEventListener("keyup", e => {
+
+if (e.key === "ArrowLeft" || e.key === "a") moveLeft = false;
+if (e.key === "ArrowRight" || e.key === "d") moveRight = false;
+
 });
+
+/* MOBILE CONTROLS */
+
+document.getElementById("left").ontouchstart = () => moveLeft = true;
+document.getElementById("left").ontouchend = () => moveLeft = false;
+
+document.getElementById("right").ontouchstart = () => moveRight = true;
+document.getElementById("right").ontouchend = () => moveRight = false;
+
+/* GAME LOOP */
+
+function animate() {
+
+requestAnimationFrame(animate);
+
+road.position.z += roadSpeed;
+
+/* DRIFT PHYSICS */
+
+let turnSpeed = drifting ? 0.08 : 0.15;
+let friction = drifting ? 0.95 : 0.7;
+
+if (moveLeft) velocityX -= turnSpeed;
+if (moveRight) velocityX += turnSpeed;
+
+velocityX *= friction;
+
+car.position.x += velocityX;
+
+/* COINS */
+
+coins.forEach((coin, i) => {
+
+coin.position.z += roadSpeed * 5;
+coin.rotation.z += 0.1;
+
+if (coin.position.distanceTo(car.position) < 1) {
+
+scene.remove(coin);
+coins.splice(i, 1);
+
+score += 10;
+scoreUI.innerText = score;
+
+}
+
+});
+
+/* POLICE */
+
+policeCars.forEach((p, i) => {
+
+p.position.z += roadSpeed * 5;
+
+if (p.position.distanceTo(car.position) < 1) {
+
+explode();
+alert("Game Over");
+
+location.reload();
+
+}
+
+});
+
+/* SPAWN */
+
+if (Math.random() < 0.02) spawnCoin();
+if (Math.random() < 0.01) spawnPolice();
+
+renderer.render(scene, camera);
+
+}
+
+animate();
