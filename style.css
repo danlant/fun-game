@@ -1,8 +1,8 @@
 body{
 margin:0;
 overflow:hidden;
-font-family:Arial;
 background:black;
+font-family:Arial;
 color:white;
 }
 
@@ -10,8 +10,12 @@ color:white;
 position:absolute;
 top:10px;
 left:10px;
-font-size:24px;
 z-index:2;
+font-size:20px;
+}
+
+#leaderboard{
+margin-top:10px;
 }
 
 #mobileControls{
